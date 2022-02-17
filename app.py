@@ -1,16 +1,22 @@
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
+from datetime import datetime,timedelta
 import json
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 
+USERNAME = "admin"
+PASSWORD = "1234"
+
+# DB conf
 DATABASE_URI='postgresql://team4:0000@localhost:5432/flask_task'
-
-
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URI
-
 db = SQLAlchemy(app)
 
+# jwt conf
+app.config['JWT_SECRET_KEY'] = "secrt1246"
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=1)
+jwt = JWTManager(app)
 
 
 class Category(db.Model):
@@ -32,8 +38,8 @@ class Task(db.Model):
     details = db.Column(db.String, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     category_id  = db.Column(db.Integer, db.ForeignKey('category.id'))
-
     category = db.relationship("Category", foreign_keys = [category_id])
+
 
     def __repr__(self):
         return f'Task("{self.title}", "{self.created_at}")'
@@ -55,10 +61,7 @@ def category():
 
     elif request.method == 'POST':
 
-        name = request.json.get('name')
-        
-        # data = json.loads(request.data)
-        
+        name = request.json.get('name')        
         category = Category(name=name)
         db.session.add(category)
         db.session.commit()
@@ -106,7 +109,10 @@ def task():
         })
 
 @app.route('/task/<int:id>', methods=['GET', 'DELETE', 'PUT'])
+@jwt_required()
 def edit_task(id):
+    username = get_jwt_identity()
+    print(username)
     task= Task.query.filter_by(id=id).first()
     if request.method == 'GET':
         dict = {}
@@ -146,11 +152,40 @@ def edit_task(id):
             "data": "user deleted successfully"
         })
 
+# auth endpoints
+@app.route('/login', methods=['POST'])
+def login():
+    data = json.loads(request.data)
+    if data['username'] == USERNAME and data['password'] == PASSWORD:
+        access_token = create_access_token(identity=data["username"]) 
+
+        return jsonify({
+            "status" : "success",
+            "data" : {'access_token': access_token}
+        })
+
+    else:
+        return jsonify({
+            "status" : "failure ",
+            'msg': 'wrong username or password' 
+        })
+
+@app.route('/protected', methods=['Get'])
+@jwt_required()
+def protected():
+        username=get_jwt_identity()
+        return jsonify({
+            "status" : "success",
+            "msg" : f"welcome {username}"
+        })
+
+    
 
 
 @app.route('/')
 def home():
-    return "<h1> HELLO WORLD </h1>"
+
+    return "<h1> The final task isa is flassk </h1>"
 
 app.run(host='127.0.0.1', port=5000, debug=True)
 db.create_all()

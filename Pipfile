@@ -5,9 +5,10 @@ name = "pypi"
 
 [packages]
 flask = "*"
-
 flask-sqlalchemy = "*" 
 psycopg2 = "==2.8.4" 
+jwt = "*"
+flask-jwt-extended = "*"
 
 [dev-packages]
 
